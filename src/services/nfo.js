@@ -8,16 +8,36 @@ export class Nfo {
    * @param {string} outputPath 输出路径
    */
   async generateNfo(metadata, outputPath) {
+    const escapeXML = (str) => {
+      if (!str) return ''
+      return str.replace(/[<>&'"]/g, (char) => {
+        switch (char) {
+          case '<':
+            return '&lt;'
+          case '>':
+            return '&gt;'
+          case '&':
+            return '&amp;'
+          case "'":
+            return '&apos;'
+          case '"':
+            return '&quot;'
+          default:
+            return char
+        }
+      })
+    }
+
     const nfoContent = `<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 <movie>
-    <title>${metadata.title || ''}</title>
-    <sorttitle>${metadata.code || ''}</sorttitle>
-    <num>${metadata.code || ''}</num>
-    <studio>${metadata.maker || ''}</studio>
-    <release>${metadata.releaseDate || ''}</release>
-    <premiered>${metadata.releaseDate || ''}</premiered>
-    <year>${metadata.releaseDate?.substring(0, 4) || ''}</year>
-    <runtime>${metadata.duration?.replace('分鐘', '') || ''}</runtime>
+    <title>${escapeXML(metadata.title)}</title>
+    <sorttitle>${escapeXML(metadata.code || '')}</sorttitle>
+    <num>${escapeXML(metadata.code || '')}</num>
+    <studio>${escapeXML(metadata.maker || '')}</studio>
+    <release>${escapeXML(metadata.releaseDate || '')}</release>
+    <premiered>${escapeXML(metadata.releaseDate || '')}</premiered>
+    <year>${escapeXML(metadata.releaseDate?.substring(0, 4) || '')}</year>
+    <runtime>${escapeXML(metadata.duration?.replace('分鐘', '') || '')}</runtime>
     <mpaa>NC-17</mpaa>
     <country>JP</country>
     <poster>poster.jpg</poster>
@@ -26,20 +46,20 @@ export class Nfo {
     ${(metadata.actors || [])
       .map(
         (actor) => `    <actor>
-        <name>${actor}</name>
-        <role>${actor}</role>
+        <name>${escapeXML(actor)}</name>
+        <role>${escapeXML(actor)}</role>
     </actor>`
       )
       .join('\n')}
     ${(metadata.categories || [])
-      .map((category) => `    <tag>${category}</tag>`)
+      .map((category) => `    <tag>${escapeXML(category)}</tag>`)
       .join('\n')}
     ${(metadata.categories || [])
-      .map((category) => `    <genre>${category}</genre>`)
+      .map((category) => `    <genre>${escapeXML(category)}</genre>`)
       .join('\n')}
-    <set>${metadata.series || '----'}</set>
+    <set>${escapeXML(metadata.series || '----')}</set>
     <label></label>
-    <cover>${metadata.coverUrl || ''}</cover>
+    <cover>${escapeXML(metadata.coverUrl || '')}</cover>
     <website>https://www.dmm.co.jp/mono/dvd/-/detail/=/cid=%s</website>
 </movie>`
 

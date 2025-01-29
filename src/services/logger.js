@@ -4,6 +4,22 @@ export class Logger extends EventEmitter {
   constructor() {
     super()
     this.steps = new Map()
+    this.logLevels = {
+      INFO: 'info',
+      WARN: 'warn',
+      ERROR: 'error',
+    }
+  }
+
+  // 添加格式化时间方法
+  formatTime(date) {
+    return date.toLocaleTimeString('zh-CN', {
+      hour12: false,
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      fractionalSecondDigits: 3,
+    })
   }
 
   /**
@@ -19,6 +35,7 @@ export class Logger extends EventEmitter {
       status: 'processing',
       startTime: new Date(),
       endTime: null,
+      level: this.logLevels.INFO,
     }
 
     if (!this.steps.has(taskId)) {
@@ -39,10 +56,13 @@ export class Logger extends EventEmitter {
     const taskSteps = this.steps.get(taskId)
     if (taskSteps?.has(step)) {
       const stepInfo = taskSteps.get(step)
+      stepInfo.duration = new Date() - stepInfo.startTime
       stepInfo.status = 'completed'
       stepInfo.endTime = new Date()
       stepInfo.message = message || stepInfo.message
       this.emit('stepUpdate', { taskId, ...stepInfo })
+    } else {
+      console.warn(`未找到步骤 ${step} 的任务记录`)
     }
   }
 
@@ -59,6 +79,7 @@ export class Logger extends EventEmitter {
       stepInfo.status = 'failed'
       stepInfo.endTime = new Date()
       stepInfo.error = error
+      stepInfo.level = this.logLevels.ERROR
       this.emit('stepUpdate', { taskId, ...stepInfo })
     }
   }

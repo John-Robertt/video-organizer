@@ -29,6 +29,11 @@ export class JavdbService {
         Cookie: this.cookies,
       },
       validateStatus: (status) => status >= 200 && status < 300, // 验证响应状态
+      retry: 3,
+      retryDelay: 1000,
+      retryCondition: (error) => {
+        return axios.isNetworkError(error) || error.response?.status === 429
+      },
     })
   }
 
@@ -158,6 +163,27 @@ export class JavdbService {
     } catch (error) {
       console.error(`[JavdbService] 获取视频信息失败: ${error.message}`)
       throw error
+    }
+  }
+
+  // 添加请求重试处理
+  async request(config) {
+    let retries = 0
+    while (retries < this.client.defaults.retry) {
+      try {
+        return await this.client(config)
+      } catch (error) {
+        if (
+          !this.client.defaults.retryCondition(error) ||
+          retries === this.client.defaults.retry - 1
+        ) {
+          throw error
+        }
+        retries++
+        await new Promise((resolve) =>
+          setTimeout(resolve, this.client.defaults.retryDelay * retries)
+        )
+      }
     }
   }
 }

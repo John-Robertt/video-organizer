@@ -5,12 +5,20 @@ import { scanner } from './core/scanner.js'
 
 // 监听步骤更新事件
 logger.on('stepUpdate', (stepInfo) => {
-  const { taskId, step, status, message, error, startTime } = stepInfo
+  const { taskId, step, status, message, error, startTime, duration, level } =
+    stepInfo
   const statusEmoji = {
     processing: '🔄',
     completed: '✅',
     failed: '❌',
   }[status]
+
+  const levelColors = {
+    info: '\x1b[32m', // 绿色
+    warn: '\x1b[33m', // 黄色
+    error: '\x1b[31m', // 红色
+  }
+  const resetColor = '\x1b[0m'
 
   // 格式化时间
   const time = new Date(startTime).toLocaleTimeString('zh-CN', {
@@ -21,11 +29,21 @@ logger.on('stepUpdate', (stepInfo) => {
     fractionalSecondDigits: 3,
   })
 
-  console.log(
-    `[${time}] ${statusEmoji} [${taskId}] ${step}: ${message}${
-      error ? ` (${error})` : ''
-    }`
-  )
+  // 构建输出消息
+  let logMessage = `[${time}] ${statusEmoji} [${taskId}] ${step}: ${message}`
+
+  // 添加持续时间（如果有）
+  if (duration) {
+    logMessage += ` (耗时: ${duration}ms)`
+  }
+
+  // 添加错误信息（如果有）
+  if (error) {
+    logMessage += `\n  错误: ${error}`
+  }
+
+  // 根据日志级别使用不同颜色输出
+  console.log(`${levelColors[level] || ''}${logMessage}${resetColor}`)
 })
 
 async function processAllVideos() {
