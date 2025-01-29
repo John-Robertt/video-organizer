@@ -2,6 +2,7 @@
 import { Organizer } from './core/organizer.js'
 import { logger } from './services/logger.js'
 import { scanner } from './core/scanner.js'
+import { config } from './services/config.js'
 
 // 监听步骤更新事件
 logger.on('stepUpdate', (stepInfo) => {
@@ -48,8 +49,11 @@ logger.on('stepUpdate', (stepInfo) => {
 
 async function processAllVideos() {
   try {
+    // 加载配置
+    await config.load()
+
     // 获取所有视频文件
-    const videoFiles = await scanner.getVideoFiles()
+    const videoFiles = await scanner.getVideoFiles(config)
     logger.startStep('main', 'scan', `找到 ${videoFiles.length} 个视频文件`)
 
     // 使用文件名作为视频编号，并清洗文件名
@@ -69,8 +73,9 @@ async function processAllVideos() {
     )
 
     // 批量处理视频
-    const organizer = new Organizer('output')
-    const results = await organizer.processVideos(videoCodes)
+    const organizer = new Organizer()
+    const outputDir = config.get('base.outputDir')
+    const results = await organizer.processVideos(videoCodes, config, outputDir)
 
     // 输出处理结果统计
     const successCount = results.filter((r) => r.success).length

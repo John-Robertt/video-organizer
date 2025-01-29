@@ -5,39 +5,6 @@ import fs from 'fs'
 
 export class JavdbService {
   /**
-   * 创建JavdbService实例
-   * @param {string} cookieFile cookie文件路径,默认为'cookie.txt'
-   */
-  constructor(cookieFile = 'config/cookie.txt') {
-    this.baseUrl = 'https://javdb.com'
-
-    // 验证cookie文件
-    if (cookieFile && !fs.existsSync(cookieFile)) {
-      console.warn(`Cookie文件 ${cookieFile} 不存在，将使用空cookie`)
-      this.cookies = ''
-    } else {
-      this.cookies = this.parseCookieFile(cookieFile)
-    }
-
-    // 创建axios实例并配置
-    this.client = axios.create({
-      baseURL: this.baseUrl,
-      timeout: 10000, // 设置超时时间
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        Cookie: this.cookies,
-      },
-      validateStatus: (status) => status >= 200 && status < 300, // 验证响应状态
-      retry: 3,
-      retryDelay: 1000,
-      retryCondition: (error) => {
-        return axios.isNetworkError(error) || error.response?.status === 429
-      },
-    })
-  }
-
-  /**
    * 解析cookie文件
    * @param {string} filePath cookie文件路径
    * @returns {string} cookie字符串
@@ -79,19 +46,40 @@ export class JavdbService {
   }
 
   /**
-   * 搜索视频信息
+   * 获取视频信息
    * @param {string} code 视频编号
+   * @param {Object} config 配置对象
    * @returns {Promise<Object>} 视频元数据
    */
-  async getVideoInfo(code) {
+  async getVideoInfo(code, config) {
     if (!code?.trim()) {
       throw new Error('视频编号不能为空')
     }
 
+    const baseUrl = config.get('scraper.javdb.baseUrl')
+    const cookieFile = config.get('scraper.javdb.cookieFile')
+    const cookies = this.parseCookieFile(cookieFile)
+
+    const client = axios.create({
+      baseURL: baseUrl,
+      timeout: 10000,
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        Cookie: cookies,
+      },
+      validateStatus: (status) => status >= 200 && status < 300,
+      retry: 3,
+      retryDelay: 1000,
+      retryCondition: (error) => {
+        return axios.isNetworkError(error) || error.response?.status === 429
+      },
+    })
+
     try {
       // 搜索页面，添加中文区域参数
       const searchUrl = `/search?q=${encodeURIComponent(code.trim())}&f=all&locale=zh`
-      const searchResponse = await this.client.get(searchUrl)
+      const searchResponse = await client.get(searchUrl)
       const $ = cheerio.load(searchResponse.data)
 
       // 遍历搜索结果列表查找匹配的番号
@@ -106,7 +94,7 @@ export class JavdbService {
           videoCode.replace(/\s+/g, '').toLowerCase() ===
             code.trim().toLowerCase()
         ) {
-          detailUrl = this.baseUrl + $item.find('a').attr('href')
+          detailUrl = baseUrl + $item.find('a').attr('href')
           return false
         }
       })
@@ -116,7 +104,7 @@ export class JavdbService {
       }
 
       // 获取详情页面
-      const detailResponse = await this.client.get(detailUrl)
+      const detailResponse = await client.get(detailUrl)
       const detail$ = cheerio.load(detailResponse.data)
       const videoInfo = {
         title: detail$('.video-detail .title .current-title').text().trim(),
@@ -158,7 +146,6 @@ export class JavdbService {
           .get(),
         coverUrl: detail$('.column-video-cover img').attr('src'),
       }
-      // 解析视频信息
       return videoInfo
     } catch (error) {
       console.error(`[JavdbService] 获取视频信息失败: ${error.message}`)

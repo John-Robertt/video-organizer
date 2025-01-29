@@ -5,23 +5,18 @@ import { scraper } from './scraper.js'
 import { images } from '../utils/images.js'
 import { nfo } from '../services/nfo.js'
 import { logger } from '../services/logger.js'
-import { scanner, scannerConfig } from './scanner.js'
+import { scanner } from './scanner.js'
 import { fileUtils } from '../utils/fileUtils.js'
 
 export class Organizer {
   /**
-   * 创建文件组织器实例
-   * @param {string} targetDir 目标目录
-   */
-  constructor(targetDir) {
-    this.targetDir = targetDir
-  }
-
-  /**
    * 处理视频文件
    * @param {string} videoCode 视频编号
+   * @param {Object} config 配置对象
+   * @param {string} targetDir 目标目录
+   * @param {number} [retryCount=3] 重试次数
    */
-  async processVideo(videoCode, retryCount = 3) {
+  async processVideo(videoCode, config, targetDir, retryCount = 3) {
     let attempt = 0
     while (attempt < retryCount) {
       try {
@@ -30,8 +25,7 @@ export class Organizer {
 
         // 扫描视频文件
         logger.startStep(videoCode, 'scan', `正在扫描视频文件 ${videoCode}`)
-        const videoFiles = await scanner.getVideoFiles()
-        console.log(videoFiles)
+        const videoFiles = await scanner.getVideoFiles(config)
 
         const videoFile = videoFiles.find((file) =>
           file.name.toUpperCase().includes(videoCode.toUpperCase())
@@ -52,7 +46,7 @@ export class Organizer {
           'scrape',
           `正在获取视频 ${videoCode} 的信息`
         )
-        const metadata = await scraper.javdb.getVideoInfo(videoCode)
+        const metadata = await scraper.javdb.getVideoInfo(videoCode, config)
         logger.completeStep(
           videoCode,
           'scrape',
@@ -61,7 +55,7 @@ export class Organizer {
 
         // 创建临时目录
         logger.startStep(videoCode, 'createDir', '正在创建视频目录')
-        videoDir = path.join(this.targetDir, metadata.code)
+        videoDir = path.join(targetDir, metadata.code)
         await fs.mkdir(videoDir, { recursive: true })
         logger.completeStep(videoCode, 'createDir', `成功创建目录: ${videoDir}`)
 
@@ -104,9 +98,9 @@ export class Organizer {
               // 检查视频文件是否在目标目录中
               const videoFiles = await fs.readdir(videoDir)
               const videoFile = videoFiles.find((file) =>
-                scannerConfig.fileTypes.includes(
-                  path.extname(file).toLowerCase()
-                )
+                config
+                  .get('fileTypes.video')
+                  .includes(path.extname(file).toLowerCase())
               )
 
               if (videoFile) {
@@ -158,12 +152,14 @@ export class Organizer {
   /**
    * 批量处理视频文件
    * @param {string[]} videoCodes 视频编号列表
+   * @param {Object} config 配置对象
+   * @param {string} targetDir 目标目录
    */
-  async processVideos(videoCodes) {
+  async processVideos(videoCodes, config, targetDir) {
     const results = []
     for (const code of videoCodes) {
       try {
-        const result = await this.processVideo(code)
+        const result = await this.processVideo(code, config, targetDir)
         results.push(result)
       } catch (error) {
         console.error(`处理视频 ${code} 时发生错误，继续处理下一个视频:`, error)

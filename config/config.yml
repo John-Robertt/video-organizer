@@ -1,22 +1,45 @@
-# 视频源配置
-sources:
-  # 可配置多个数据源
-  themoviedb:
-    baseUrl: 'https://api.themoviedb.org/3'
-    apiKey: ''
+# 基础配置
+base:
+  # 源文件目录，支持相对路径和绝对路径
+  sourceDir: '.'
+  # 输出目录
+  outputDir: 'output'
+  # 是否跳过隐藏文件
+  skipHiddenFiles: true
+  # 排除的目录
+  excludeDirs:
+    - 'node_modules'
+    - 'temp'
+    - 'downloads'
+    - '@eaDir'
+    - 'output'
 
-# 文件整理规则
-organizing_rules:
-  # 目标文件夹结构
-  movie_pattern: '{title} ({year})'
-  tv_pattern: '{title}/Season {season}/{title} - S{season}E{episode}'
+# 文件类型配置
+fileTypes:
+  # 支持的视频文件扩展名
+  video:
+    - '.mp4'
+    - '.avi'
+    - '.mkv'
+    - '.mov'
+    - '.wmv'
+    - '.flv'
+    - '.webm'
+    - '.m4v'
+    - '.mpg'
+    - '.mpeg'
+    - '.3gp'
+    - '.ts'
+    - '.mts'
 
-# 元数据配置
-metadata:
-  # 需要获取的元数据字段
-  fields:
-    - title
-    - year
-    - plot
-    - genre
-    - rating
+# 刮削器配置
+scraper:
+  # 默认刮削源
+  default: 'javdb'
+  # JavDB配置
+  javdb:
+    baseUrl: 'https://javdb.com'
+    cookieFile: 'config/cookie.txt'
+    timeout: 10000
+    retry: 3
+    retryDelay: 1000
