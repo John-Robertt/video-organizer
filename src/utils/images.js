@@ -2,6 +2,7 @@ import fsPromises from 'fs/promises'
 import sharp from 'sharp'
 import path from 'path'
 import axios from 'axios'
+import { logger } from '../services/logger.js'
 
 export class Images {
   constructor() {
@@ -27,12 +28,14 @@ export class Images {
     }
 
     try {
-      // 下载图片（使用更长的超时时间）
+      logger.startStep('image', 'download', `开始下载封面: ${coverUrl}`)
       const response = await this.client.get(coverUrl, {
         responseType: 'arraybuffer',
-        timeout: 30000, // 图片下载专用超时
+        timeout: 30000,
       })
+      logger.completeStep('image', 'download', '封面下载完成')
 
+      logger.startStep('image', 'split', '开始处理封面图片')
       const imageBuffer = Buffer.from(response.data)
       const image = sharp(imageBuffer)
       const { width, height } = await image.metadata()
@@ -48,10 +51,10 @@ export class Images {
         height,
       })
 
-      // 直接返回buffer，移除文件保存
+      logger.completeStep('image', 'split', '封面处理完成')
       return rightHalfImage.toBuffer()
     } catch (error) {
-      console.error(`[Images] 处理封面图片失败: ${error.message}`)
+      logger.failStep('image', 'error', `处理封面图片失败: ${error.message}`)
       throw error
     }
   }
@@ -69,17 +72,19 @@ export class Images {
       const fanartPath = path.join(outputDir, `fanart${extension}`)
       const posterPath = path.join(outputDir, `poster${extension}`)
 
-      // 下载原始封面并直接保存
+      logger.startStep('image', 'fanart', '开始下载原始封面')
       const coverResponse = await this.client.get(coverUrl, {
         responseType: 'arraybuffer',
       })
       await fsPromises.writeFile(fanartPath, Buffer.from(coverResponse.data))
+      logger.completeStep('image', 'fanart', `原始封面已保存: ${fanartPath}`)
 
-      // 获取分割后的封面并保存
+      logger.startStep('image', 'poster', '开始处理海报图片')
       const splitCoverBuffer = await this.splitCoverImage(coverUrl)
       await fsPromises.writeFile(posterPath, splitCoverBuffer)
+      logger.completeStep('image', 'poster', `海报已保存: ${posterPath}`)
     } catch (error) {
-      console.error(`[Images] 下载并保存封面失败: ${error.message}`)
+      logger.failStep('image', 'error', `下载并保存封面失败: ${error.message}`)
       throw error
     }
   }

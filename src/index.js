@@ -1,7 +1,6 @@
 // 项目入口文件
 import { Organizer } from './core/organizer.js'
 import { logger } from './services/logger.js'
-import { scanner } from './core/scanner.js'
 import { config } from './services/config.js'
 
 // 监听步骤更新事件
@@ -49,33 +48,15 @@ logger.on('stepUpdate', (stepInfo) => {
 
 async function processAllVideos() {
   try {
-    // 加载配置
     await config.load()
+    await logger.initLogFile()
 
-    // 获取所有视频文件
-    const videoFiles = await scanner.getVideoFiles(config)
-    logger.startStep('main', 'scan', `找到 ${videoFiles.length} 个视频文件`)
-
-    // 使用文件名作为视频编号，并清洗文件名
-    const videoCodes = videoFiles.map((file) => {
-      // 获取不带扩展名的文件名
-      const fileName = file.name.replace(/\.[^/.]+$/, '')
-
-      // 清洗文件名，提取番号
-      const match = fileName.match(/([A-Z]+-\d+)(?:-[A-Z])?/i)
-      return match ? match[1].toUpperCase() : fileName
-    })
-
-    logger.startStep(
-      'main',
-      'process',
-      `准备处理 ${videoCodes.length} 个视频文件`
-    )
-
-    // 批量处理视频
+    // 初始化 organizer
     const organizer = new Organizer()
     const outputDir = config.get('base.outputDir')
-    const results = await organizer.processVideos(videoCodes, config, outputDir)
+
+    // 直接调用 organizer 处理所有视频
+    const results = await organizer.processVideos(config, outputDir)
 
     // 输出处理结果统计
     const successCount = results.filter((r) => r.success).length

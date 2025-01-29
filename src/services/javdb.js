@@ -2,6 +2,7 @@
 import axios from 'axios'
 import * as cheerio from 'cheerio'
 import fs from 'fs'
+import { logger } from '../services/logger.js'
 
 export class JavdbService {
   /**
@@ -60,6 +61,8 @@ export class JavdbService {
     const cookieFile = config.get('scraper.javdb.cookieFile')
     const cookies = this.parseCookieFile(cookieFile)
 
+    logger.startStep(code, 'javdb', `开始从JavDB获取视频 ${code} 的信息`)
+
     const client = axios.create({
       baseURL: baseUrl,
       timeout: 10000,
@@ -79,6 +82,7 @@ export class JavdbService {
     try {
       // 搜索页面，添加中文区域参数
       const searchUrl = `/search?q=${encodeURIComponent(code.trim())}&f=all&locale=zh`
+      logger.startStep(code, 'javdb-search', `正在搜索视频: ${code}`)
       const searchResponse = await client.get(searchUrl)
       const $ = cheerio.load(searchResponse.data)
 
@@ -100,10 +104,13 @@ export class JavdbService {
       })
 
       if (!detailUrl) {
+        logger.failStep(code, 'javdb-search', '未找到匹配的视频信息')
         throw new Error('未找到匹配的视频信息')
       }
+      logger.completeStep(code, 'javdb-search', `找到匹配视频: ${detailUrl}`)
 
       // 获取详情页面
+      logger.startStep(code, 'javdb-detail', '正在获取视频详细信息')
       const detailResponse = await client.get(detailUrl)
       const detail$ = cheerio.load(detailResponse.data)
       const videoInfo = {
@@ -146,9 +153,16 @@ export class JavdbService {
           .get(),
         coverUrl: detail$('.column-video-cover img').attr('src'),
       }
+
+      logger.completeStep(
+        code,
+        'javdb-detail',
+        `成功获取视频 ${code} 的详细信息`
+      )
+      logger.completeStep(code, 'javdb', `完成获取视频 ${code} 的信息`)
       return videoInfo
     } catch (error) {
-      console.error(`[JavdbService] 获取视频信息失败: ${error.message}`)
+      logger.failStep(code, 'javdb', `获取视频信息失败: ${error.message}`)
       throw error
     }
   }

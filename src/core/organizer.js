@@ -10,30 +10,35 @@ import { fileUtils } from '../utils/fileUtils.js'
 
 export class Organizer {
   /**
+   * 从文件名中提取视频编号
+   * @param {string} fileName 文件名
+   * @returns {string} 视频编号
+   */
+  extractVideoCode(fileName) {
+    // 获取不带扩展名的文件名
+    const nameWithoutExt = fileName.replace(/\.[^/.]+$/, '')
+    // 清洗文件名，提取番号
+    const match = nameWithoutExt.match(/([A-Z]+-\d+)(?:-[A-Z])?/i)
+    return match ? match[1].toUpperCase() : nameWithoutExt
+  }
+
+  /**
    * 处理视频文件
-   * @param {string} videoCode 视频编号
+   * @param {Object} videoInfo 视频信息对象
    * @param {Object} config 配置对象
    * @param {string} targetDir 目标目录
    * @param {number} [retryCount=3] 重试次数
    */
-  async processVideo(videoCode, config, targetDir, retryCount = 3) {
+  async processVideo(videoInfo, config, targetDir, retryCount = 3) {
     let attempt = 0
     while (attempt < retryCount) {
       try {
         let videoDir = null
-        let sourceVideoPath = null
+        const { code: videoCode, file: videoFile } = videoInfo
+        const sourceVideoPath = videoFile.path
 
-        // 扫描视频文件
-        logger.startStep(videoCode, 'scan', `正在扫描视频文件 ${videoCode}`)
-        const videoFiles = await scanner.getVideoFiles(config)
-
-        const videoFile = videoFiles.find((file) =>
-          file.name.toUpperCase().includes(videoCode.toUpperCase())
-        )
-        if (!videoFile) {
-          throw new Error(`未找到视频文件: ${videoCode}`)
-        }
-        sourceVideoPath = videoFile.path
+        // 记录找到的视频文件
+        logger.startStep(videoCode, 'scan', `正在处理视频文件 ${videoCode}`)
         logger.completeStep(
           videoCode,
           'scan',
@@ -129,18 +134,18 @@ export class Organizer {
         attempt++
         if (attempt === retryCount) {
           logger.failStep(
-            videoCode,
+            videoInfo.code,
             'process',
             `处理失败(重试${retryCount}次): ${error.message}`
           )
           return {
             success: false,
-            code: videoCode,
+            code: videoInfo.code,
             error: error.message,
           }
         }
         logger.startStep(
-          videoCode,
+          videoInfo.code,
           'retry',
           `处理失败，第${attempt}次重试: ${error.message}`
         )
@@ -151,26 +156,77 @@ export class Organizer {
 
   /**
    * 批量处理视频文件
-   * @param {string[]} videoCodes 视频编号列表
    * @param {Object} config 配置对象
    * @param {string} targetDir 目标目录
    */
-  async processVideos(videoCodes, config, targetDir) {
-    const results = []
-    for (const code of videoCodes) {
-      try {
-        const result = await this.processVideo(code, config, targetDir)
-        results.push(result)
-      } catch (error) {
-        console.error(`处理视频 ${code} 时发生错误，继续处理下一个视频:`, error)
-        results.push({
-          success: false,
-          code: code,
-          error: error.message,
-        })
-        continue
+  async processVideos(config, targetDir) {
+    try {
+      // 获取所有视频文件
+      const videoFiles = await scanner.getVideoFiles(config)
+      logger.startStep('batch', 'scan', `找到 ${videoFiles.length} 个视频文件`)
+
+      // 处理文件名并创建视频信息对象
+      const videoInfos = videoFiles.map((file) => ({
+        code: this.extractVideoCode(file.name),
+        file: file,
+      }))
+
+      logger.startStep(
+        'batch',
+        'process',
+        `开始批量处理 ${videoInfos.length} 个视频文件`
+      )
+
+      const results = []
+      for (const videoInfo of videoInfos) {
+        try {
+          logger.startStep(
+            'batch',
+            videoInfo.code,
+            `开始处理视频 ${videoInfo.code}`
+          )
+          const result = await this.processVideo(videoInfo, config, targetDir)
+          results.push(result)
+
+          if (result.success) {
+            logger.completeStep(
+              'batch',
+              videoInfo.code,
+              `视频 ${videoInfo.code} 处理成功`
+            )
+          } else {
+            logger.failStep(
+              'batch',
+              videoInfo.code,
+              `视频 ${videoInfo.code} 处理失败: ${result.error}`
+            )
+          }
+        } catch (error) {
+          logger.failStep(
+            'batch',
+            videoInfo.code,
+            `处理视频 ${videoInfo.code} 时发生错误: ${error.message}`
+          )
+          results.push({
+            success: false,
+            code: videoInfo.code,
+            error: error.message,
+          })
+          continue
+        }
       }
+
+      const successCount = results.filter((r) => r.success).length
+      logger.completeStep(
+        'batch',
+        'process',
+        `批量处理完成: 成功 ${successCount}/${videoInfos.length}`
+      )
+
+      return results
+    } catch (error) {
+      logger.failStep('batch', 'process', `批量处理失败: ${error.message}`)
+      throw error
     }
-    return results
   }
 }

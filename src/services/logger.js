@@ -1,4 +1,7 @@
 import EventEmitter from 'events'
+import fs from 'fs/promises'
+import path from 'path'
+import { config } from './config.js'
 
 export class Logger extends EventEmitter {
   constructor() {
@@ -9,6 +12,8 @@ export class Logger extends EventEmitter {
       WARN: 'warn',
       ERROR: 'error',
     }
+    this.logFile = null
+    this.logStream = null
   }
 
   // 添加格式化时间方法
@@ -91,6 +96,65 @@ export class Logger extends EventEmitter {
    */
   getTaskSteps(taskId) {
     return this.steps.get(taskId) || new Map()
+  }
+
+  /**
+   * 初始化日志文件
+   */
+  async initLogFile() {
+    if (!config.get('log.enabled')) return
+
+    const outputDir = config.get('base.outputDir')
+    const logPath = config.get('log.path')
+    const logFilename = config.get('log.filename')
+
+    const logDir = path.join(outputDir, logPath)
+    await fs.mkdir(logDir, { recursive: true })
+
+    this.logFile = path.join(logDir, logFilename)
+    // 确保文件存在
+    await fs.appendFile(this.logFile, '')
+  }
+
+  /**
+   * 写入日志到文件
+   * @param {string} message 日志消息
+   */
+  async writeToFile(message) {
+    if (!this.logFile || !config.get('log.enabled')) return
+
+    try {
+      const timestamp = new Date().toISOString()
+      const logEntry = `${timestamp} ${message}\n`
+      await fs.appendFile(this.logFile, logEntry)
+    } catch (error) {
+      console.error('写入日志文件失败:', error)
+    }
+  }
+
+  emit(event, stepInfo) {
+    if (event === 'stepUpdate') {
+      const { taskId, step, status, message, error, duration } = stepInfo
+      const statusEmoji = {
+        processing: '🔄',
+        completed: '✅',
+        failed: '❌',
+      }[status]
+
+      // 构建日志消息
+      let logMessage = `[${taskId}] ${step}: ${message}`
+      if (duration) {
+        logMessage += ` (耗时: ${duration}ms)`
+      }
+      if (error) {
+        logMessage += `\n  错误: ${error}`
+      }
+
+      // 写入日志文件
+      this.writeToFile(`${statusEmoji} ${logMessage}`)
+    }
+
+    super.emit(event, stepInfo)
   }
 }
 

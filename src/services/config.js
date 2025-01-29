@@ -85,8 +85,6 @@ export class Config {
         outputDir
       )
 
-      console.log(this.config)
-
       return this.config
     } catch (error) {
       console.error('加载配置文件失败:', error)

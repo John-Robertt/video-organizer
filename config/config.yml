@@ -3,7 +3,7 @@ base:
   # 源文件目录，支持相对路径和绝对路径
   sourceDir: '.'
   # 输出目录
-  outputDir: 'output'
+  outputDir: '.output'
   # 是否跳过隐藏文件
   skipHiddenFiles: true
   # 排除的目录
@@ -43,3 +43,12 @@ scraper:
     timeout: 10000
     retry: 3
     retryDelay: 1000
+
+# 日志配置
+log:
+  # 是否启用文件日志
+  enabled: true
+  # 日志文件路径，支持相对路径（相对于 outputDir）
+  path: 'log'
+  # 日志文件名格式
+  filename: 'app.log'
