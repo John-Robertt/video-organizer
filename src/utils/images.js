@@ -3,7 +3,7 @@ import sharp from 'sharp'
 import path from 'path'
 import axios from 'axios'
 
-class Images {
+export class Images {
   constructor() {
     // 创建专用的 axios 实例
     this.client = axios.create({

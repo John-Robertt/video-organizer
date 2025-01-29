@@ -161,3 +161,5 @@ export class JavdbService {
     }
   }
 }
+
+export const javdb = new JavdbService()

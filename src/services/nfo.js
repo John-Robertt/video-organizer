@@ -1,13 +1,13 @@
 // 处理 NFO 文件的生成和解析
 import fs from 'fs/promises'
 
-export class nfo {
+export class Nfo {
   /**
    * 生成NFO文件
    * @param {Object} metadata 视频元数据
    * @param {string} outputPath 输出路径
    */
-  static async generateNfo(metadata, outputPath) {
+  async generateNfo(metadata, outputPath) {
     const nfoContent = `<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 <movie>
     <title>${metadata.title || ''}</title>
@@ -46,3 +46,5 @@ export class nfo {
     await fs.writeFile(outputPath, nfoContent, 'utf8')
   }
 }
+
+export const nfo = new Nfo()
