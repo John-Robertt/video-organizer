@@ -1,0 +1,22 @@
+# 视频源配置
+sources:
+  # 可配置多个数据源
+  themoviedb:
+    baseUrl: 'https://api.themoviedb.org/3'
+    apiKey: ''
+
+# 文件整理规则
+organizing_rules:
+  # 目标文件夹结构
+  movie_pattern: '{title} ({year})'
+  tv_pattern: '{title}/Season {season}/{title} - S{season}E{episode}'
+
+# 元数据配置
+metadata:
+  # 需要获取的元数据字段
+  fields:
+    - title
+    - year
+    - plot
+    - genre
+    - rating

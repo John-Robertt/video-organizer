@@ -82,7 +82,7 @@ const ErrorTypes = {
 // 加载配置文件
 async function loadConfig() {
   try {
-    const configData = await promises.readFile('config.yml', 'utf8')
+    const configData = await promises.readFile('config/toolsConfig.yml', 'utf8')
     const config = YAML.parse(configData)
 
     // 使用默认值处理空字段
@@ -127,12 +127,12 @@ async function loadConfig() {
                   (type) => typeof type === 'string' && type.startsWith('.')
                 )
                 if (validTypes.length === 0) {
-                  console.warn('⚠️ fileTypes 格式无效，使用默认值')
+                  console.warn('🔴 fileTypes 格式无效，使用默认值')
                   return [key, CONFIG[key]]
                 }
                 return [key, validTypes]
               }
-              console.warn('⚠️ fileTypes 必须是数组，使用默认值')
+              console.warn('🔴 fileTypes 必须是数组，使用默认值')
               return [key, CONFIG[key]]
             case 'excludeDirs':
               if (Array.isArray(value)) {
@@ -140,12 +140,12 @@ async function loadConfig() {
                   (dir) => typeof dir === 'string' && dir.trim()
                 )
                 if (validDirs.length === 0) {
-                  console.warn('⚠️ excludeDirs 格式无效，使用默认值')
+                  console.warn('🔴 excludeDirs 格式无效，使用默认值')
                   return [key, CONFIG[key]]
                 }
                 return [key, validDirs]
               }
-              console.warn('⚠️ excludeDirs 必须是数组，使用默认值')
+              console.warn('🔴 excludeDirs 必须是数组，使用默认值')
               return [key, CONFIG[key]]
             default:
               return [key, value]
@@ -196,7 +196,7 @@ async function loadConfig() {
     console.log('\n📝 已加载配置文件')
   } catch (error) {
     if (error.code === 'ENOENT') {
-      console.warn('⚠️ 未找到配置文件，使用默认配置')
+      console.warn('🔴 未找到配置文件，使用默认配置')
       // 创建默认配置文件
       try {
         const defaultConfig = {
@@ -272,7 +272,7 @@ function parseArgs() {
 
 async function processDirectory(dirPath, depth = 0) {
   if (depth > CONFIG.maxDepth) {
-    console.warn(`⚠️ 超过最大递归深度 (${CONFIG.maxDepth}): ${dirPath}`)
+    console.warn(`🔴 超过最大递归深度 (${CONFIG.maxDepth}): ${dirPath}`)
     return
   }
 
@@ -376,7 +376,7 @@ async function safeDeleteFile(filePath) {
       await trash(filePath)
       return true
     } catch (error) {
-      console.warn(`⚠️ 移动到回收站失败，尝试直接删除: ${filePath}`)
+      console.warn(`🔴 移动到回收站失败，尝试直接删除: ${filePath}`)
       return false
     }
   }
@@ -457,8 +457,7 @@ async function fileExists(filePath) {
   }
 }
 
-// 在 main 函数开始时调用
-async function main() {
+async function moveVideoTools() {
   await loadConfig()
   parseArgs()
   console.log('📁 开始处理视频文件...\n')
@@ -517,8 +516,8 @@ async function main() {
   console.log(`\n⏱️ 总耗时: ${duration} 秒`)
 }
 
-// 执行程序并处理未捕获的错误
-main().catch((error) => {
+moveVideoTools().catch((error) => {
+  // 执行程序并处理未捕获的错误
   console.error('💥 发生致命错误:', error)
   process.exit(1)
 })
