@@ -91,6 +91,9 @@ export class Organizer {
           }
           logger.completeStep(videoCode, 'move', '成功移动视频文件')
 
+          // 处理完成后等待3秒
+          await new Promise((resolve) => setTimeout(resolve, 3000))
+
           return {
             success: true,
             code: metadata.code,

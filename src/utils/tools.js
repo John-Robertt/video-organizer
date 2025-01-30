@@ -1,5 +1,5 @@
 import { promises } from 'fs'
-import { relative, join, extname, dirname, parse } from 'path'
+import { relative, join, extname, dirname, parse, isAbsolute } from 'path'
 import trash from 'trash'
 import { stringify } from 'yaml'
 import YAML from 'yaml'
@@ -157,11 +157,9 @@ async function loadConfig() {
     // 处理路径配置
     if (mergedConfig.targetDir) {
       try {
-        mergedConfig.targetDir =
-          mergedConfig.targetDir.startsWith('/') ||
-          mergedConfig.targetDir.match(/^[A-Z]:\\/i)
-            ? mergedConfig.targetDir
-            : join(process.cwd(), mergedConfig.targetDir)
+        mergedConfig.targetDir = isAbsolute(mergedConfig.targetDir)
+          ? mergedConfig.targetDir
+          : join(process.cwd(), mergedConfig.targetDir)
 
         // 验证目标目录是否存在
         if (!(await fileExists(mergedConfig.targetDir))) {
