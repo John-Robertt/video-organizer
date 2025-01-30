@@ -59,7 +59,24 @@ export class Logger extends EventEmitter {
    */
   completeStep(taskId, step, message) {
     const taskSteps = this.steps.get(taskId)
-    if (taskSteps?.has(step)) {
+    if (!taskSteps) {
+      // 如果任务不存在，创建新的任务记录
+      this.steps.set(taskId, new Map())
+      const stepInfo = {
+        step,
+        message: message,
+        status: 'completed',
+        startTime: new Date(),
+        endTime: new Date(),
+        duration: 0,
+        level: this.logLevels.INFO,
+      }
+      this.steps.get(taskId).set(step, stepInfo)
+      this.emit('stepUpdate', { taskId, ...stepInfo })
+      return
+    }
+
+    if (taskSteps.has(step)) {
       const stepInfo = taskSteps.get(step)
       stepInfo.duration = new Date() - stepInfo.startTime
       stepInfo.status = 'completed'
@@ -67,7 +84,18 @@ export class Logger extends EventEmitter {
       stepInfo.message = message || stepInfo.message
       this.emit('stepUpdate', { taskId, ...stepInfo })
     } else {
-      console.warn(`未找到步骤 ${step} 的任务记录`)
+      // 如果步骤不存在，创建新的步骤记录
+      const stepInfo = {
+        step,
+        message: message,
+        status: 'completed',
+        startTime: new Date(),
+        endTime: new Date(),
+        duration: 0,
+        level: this.logLevels.INFO,
+      }
+      taskSteps.set(step, stepInfo)
+      this.emit('stepUpdate', { taskId, ...stepInfo })
     }
   }
 

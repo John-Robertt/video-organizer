@@ -30,37 +30,35 @@ export class Nfo {
 
     const nfoContent = `<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 <movie>
-    <title>${escapeXML(metadata.title)}</title>
-    <sorttitle>${escapeXML(metadata.code || '')}</sorttitle>
-    <num>${escapeXML(metadata.code || '')}</num>
-    <studio>${escapeXML(metadata.maker || '')}</studio>
-    <release>${escapeXML(metadata.releaseDate || '')}</release>
-    <premiered>${escapeXML(metadata.releaseDate || '')}</premiered>
-    <year>${escapeXML(metadata.releaseDate?.substring(0, 4) || '')}</year>
-    <runtime>${escapeXML(metadata.duration?.replace('分鐘', '') || '')}</runtime>
-    <mpaa>NC-17</mpaa>
-    <country>JP</country>
-    <poster>poster.jpg</poster>
-    <thumb>poster.jpg</thumb>
-    <fanart>fanart.jpg</fanart>
-    ${(metadata.actors || [])
-      .map(
-        (actor) => `    <actor>
-        <name>${escapeXML(actor)}</name>
-        <role>${escapeXML(actor)}</role>
-    </actor>`
-      )
-      .join('\n')}
-    ${(metadata.categories || [])
-      .map((category) => `    <tag>${escapeXML(category)}</tag>`)
-      .join('\n')}
-    ${(metadata.categories || [])
-      .map((category) => `    <genre>${escapeXML(category)}</genre>`)
-      .join('\n')}
-    <set>${escapeXML(metadata.series || '----')}</set>
-    <label></label>
-    <cover>${escapeXML(metadata.coverUrl || '')}</cover>
-    <website>https://www.dmm.co.jp/mono/dvd/-/detail/=/cid=%s</website>
+  <title>${escapeXML(metadata.title)}</title>
+  <sorttitle>${escapeXML(metadata.code || '')}</sorttitle>
+  <num>${escapeXML(metadata.code || '')}</num>
+  <studio>${escapeXML(metadata.maker || '')}</studio>
+  <release>${escapeXML(metadata.releaseDate || '')}</release>
+  <premiered>${escapeXML(metadata.releaseDate || '')}</premiered>
+  <year>${escapeXML(metadata.releaseDate?.substring(0, 4) || '')}</year>
+  <runtime>${escapeXML(metadata.duration?.replace(/[^0-9]/g, '') || '')}</runtime>
+  <mpaa>R18+</mpaa>
+  <country>JP</country>
+  <poster>poster.jpg</poster>
+  <thumb>poster.jpg</thumb>
+  <fanart>fanart.jpg</fanart>
+${(metadata.actors || [])
+  .map(
+    (actor) => `  <actor>
+    <name>${escapeXML(actor)}</name>
+    <role>${escapeXML(actor)}</role>
+  </actor>`
+  )
+  .join('\n')}
+${(metadata.categories || [])
+  .map((category) => `  <tag>${escapeXML(category)}</tag>`)
+  .join('\n')}
+${(metadata.categories || [])
+  .map((category) => `  <genre>${escapeXML(category)}</genre>`)
+  .join('\n')}
+  <set>${escapeXML(metadata.series || '----')}</set>
+  <cover>${escapeXML(metadata.coverUrl || '')}</cover>
 </movie>`
 
     await fs.writeFile(outputPath, nfoContent, 'utf8')
