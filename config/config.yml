@@ -3,7 +3,7 @@ base:
   # 源文件目录，支持相对路径和绝对路径
   sourceDir: '.'
   # 输出目录
-  outputDir: '.output'
+  outputDir: 'output'
   # 是否跳过隐藏文件
   skipHiddenFiles: true
   # 排除的目录
