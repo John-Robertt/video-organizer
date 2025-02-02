@@ -113,11 +113,14 @@ export class JavdbService {
       logger.startStep(code, 'javdb-detail', '正在获取视频详细信息')
       const detailResponse = await client.get(detailUrl)
       const detail$ = cheerio.load(detailResponse.data)
+      const detailCode = detail$(
+        '.movie-panel-info .panel-block:contains("番號") .value'
+      )
+        .text()
+        .trim()
       const videoInfo = {
-        title: detail$('.video-detail .title .current-title').text().trim(),
-        code: detail$('.movie-panel-info .panel-block:contains("番號") .value')
-          .text()
-          .trim(),
+        title: `${code} ${detail$('.video-detail .title .current-title').text().trim()}`,
+        code: detailCode,
         releaseDate: detail$(
           '.movie-panel-info .panel-block:contains("日期") .value'
         )

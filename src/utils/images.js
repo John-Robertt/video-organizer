@@ -18,25 +18,12 @@ export class Images {
 
   /**
    * 分割封面图片
-   * @param {string} coverUrl 封面图片URL
+   * @param {Buffer} imageBuffer 图片的Buffer
    * @returns {Promise<Buffer>} 分割后的图片
    */
-
-  async splitCoverImage(coverUrl) {
-    if (!coverUrl?.startsWith('http')) {
-      throw new Error('无效的封面图片URL')
-    }
-
+  async splitCoverImage(imageBuffer) {
     try {
-      logger.startStep('image', 'download', `开始下载封面: ${coverUrl}`)
-      const response = await this.client.get(coverUrl, {
-        responseType: 'arraybuffer',
-        timeout: 30000,
-      })
-      logger.completeStep('image', 'download', '封面下载完成')
-
       logger.startStep('image', 'split', '开始处理封面图片')
-      const imageBuffer = Buffer.from(response.data)
       const image = sharp(imageBuffer)
       const { width, height } = await image.metadata()
 
@@ -66,21 +53,32 @@ export class Images {
    * @returns {Promise<void>}
    */
   async downloadAndSaveCovers(coverUrl, outputDir) {
+    if (!coverUrl?.startsWith('http')) {
+      throw new Error('无效的封面图片URL')
+    }
+
     try {
       // 从URL中获取原始图片扩展名
       const extension = path.extname(new URL(coverUrl).pathname) || '.jpg'
       const fanartPath = path.join(outputDir, `fanart${extension}`)
       const posterPath = path.join(outputDir, `poster${extension}`)
 
-      logger.startStep('image', 'fanart', '开始下载原始封面')
+      logger.startStep('image', 'download', `开始下载封面: ${coverUrl}`)
       const coverResponse = await this.client.get(coverUrl, {
         responseType: 'arraybuffer',
+        timeout: 30000,
       })
-      await fsPromises.writeFile(fanartPath, Buffer.from(coverResponse.data))
+      const imageBuffer = Buffer.from(coverResponse.data)
+      logger.completeStep('image', 'download', '封面下载完成')
+
+      // 保存原始封面
+      logger.startStep('image', 'fanart', '开始保存原始封面')
+      await fsPromises.writeFile(fanartPath, imageBuffer)
       logger.completeStep('image', 'fanart', `原始封面已保存: ${fanartPath}`)
 
+      // 处理并保存海报
       logger.startStep('image', 'poster', '开始处理海报图片')
-      const splitCoverBuffer = await this.splitCoverImage(coverUrl)
+      const splitCoverBuffer = await this.splitCoverImage(imageBuffer)
       await fsPromises.writeFile(posterPath, splitCoverBuffer)
       logger.completeStep('image', 'poster', `海报已保存: ${posterPath}`)
     } catch (error) {
