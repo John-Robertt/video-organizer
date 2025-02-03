@@ -28,7 +28,7 @@ export class Nfo {
       })
     }
 
-    const nfoContent = `<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+    let nfoContent = `<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 <movie>
   <title>${escapeXML(metadata.title)}</title>
   <sorttitle>${escapeXML(metadata.code || '')}</sorttitle>
@@ -59,7 +59,14 @@ ${(metadata.categories || [])
   .join('\n')}
   <set>${escapeXML(metadata.series || '----')}</set>
   <cover>${escapeXML(metadata.coverUrl || '')}</cover>
+  <website>${escapeXML(metadata.detailUrl || '')}</website>
 </movie>`
+
+    // 清理空行
+    nfoContent = nfoContent
+      .split('\n')
+      .filter((line) => line.trim() !== '')
+      .join('\n')
 
     await fs.writeFile(outputPath, nfoContent, 'utf8')
   }

@@ -5,14 +5,66 @@ import fs from 'fs'
 import { logger } from '../services/logger.js'
 
 export class JavdbService {
+  constructor() {
+    this.baseUrl = null
+    this.cookies = ''
+    this.client = null
+  }
+
+  /**
+   * 初始化服务
+   * @param {Object} config 配置对象
+   */
+  initialize(config) {
+    this.baseUrl = config.get('scraper.javdb.baseUrl')
+    const cookieFile = config.get('scraper.javdb.cookieFile')
+    this.cookies = this.parseCookieFile(cookieFile)
+
+    this.client = axios.create({
+      baseURL: this.baseUrl,
+      timeout: 10000,
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        Cookie: this.cookies,
+      },
+      validateStatus: (status) => status >= 200 && status < 300,
+      retry: 3,
+      retryDelay: 1000,
+      retryCondition: (error) => {
+        return axios.isNetworkError(error) || error.response?.status === 429
+      },
+    })
+  }
+
   /**
    * 解析cookie文件
    * @param {string} filePath cookie文件路径
    * @returns {string} cookie字符串
    */
   parseCookieFile(filePath) {
-    if (!filePath) return ''
+    if (!filePath) {
+      logger.startStep('cookie', 'parse', 'Cookie文件解析')
+      logger.completeStep(
+        'cookie',
+        'parse',
+        '未指定Cookie文件路径，将使用空cookie继续'
+      )
+      return ''
+    }
+
     try {
+      logger.startStep('cookie', 'parse', `开始解析Cookie文件: ${filePath}`)
+
+      if (!fs.existsSync(filePath)) {
+        logger.completeStep(
+          'cookie',
+          'parse',
+          `Cookie文件 ${filePath} 不存在，将使用空cookie继续`
+        )
+        return ''
+      }
+
       const content = fs.readFileSync(filePath, 'utf-8')
       const lines = content.split('\n')
 
@@ -20,8 +72,12 @@ export class JavdbService {
       const cookieItems = lines
         .filter((line) => line && !line.startsWith('#'))
         .map((line) => {
-          // 按tab分割行
-          const [domain, name, value] = line.split('\t')
+          // Netscape cookie 文件格式：
+          // domain  domain_initial_dot  path  secure  expiration  name  value
+          const fields = line.split('\t')
+          if (fields.length < 7) return null
+
+          const [domain, , , , , name, value] = fields
 
           // 验证必要字段
           if (!domain?.includes('javdb.com') || !name || !value) {
@@ -39,9 +95,15 @@ export class JavdbService {
         cookieMap.set(name, item)
       })
 
-      return Array.from(cookieMap.values()).join('; ')
+      const cookieString = Array.from(cookieMap.values()).join('; ')
+      logger.completeStep(
+        'cookie',
+        'parse',
+        `成功解析Cookie文件，获取到 ${cookieMap.size} 个有效Cookie`
+      )
+      return cookieString
     } catch (error) {
-      console.error('解析cookie文件失败:', error)
+      logger.failStep('cookie', 'parse', `解析Cookie文件失败: ${error.message}`)
       return ''
     }
   }
@@ -57,33 +119,17 @@ export class JavdbService {
       throw new Error('视频编号不能为空')
     }
 
-    const baseUrl = config.get('scraper.javdb.baseUrl')
-    const cookieFile = config.get('scraper.javdb.cookieFile')
-    const cookies = this.parseCookieFile(cookieFile)
+    if (!this.client) {
+      this.initialize(config)
+    }
 
     logger.startStep(code, 'javdb', `开始从JavDB获取视频 ${code} 的信息`)
-
-    const client = axios.create({
-      baseURL: baseUrl,
-      timeout: 10000,
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        Cookie: cookies,
-      },
-      validateStatus: (status) => status >= 200 && status < 300,
-      retry: 3,
-      retryDelay: 1000,
-      retryCondition: (error) => {
-        return axios.isNetworkError(error) || error.response?.status === 429
-      },
-    })
 
     try {
       // 搜索页面，添加中文区域参数
       const searchUrl = `/search?q=${encodeURIComponent(code.trim())}&f=all&locale=zh`
       logger.startStep(code, 'javdb-search', `正在搜索视频: ${code}`)
-      const searchResponse = await client.get(searchUrl)
+      const searchResponse = await this.client.get(searchUrl)
       const $ = cheerio.load(searchResponse.data)
 
       // 遍历搜索结果列表查找匹配的番号
@@ -98,7 +144,7 @@ export class JavdbService {
           videoCode.replace(/\s+/g, '').toLowerCase() ===
             code.trim().toLowerCase()
         ) {
-          detailUrl = baseUrl + $item.find('a').attr('href')
+          detailUrl = this.baseUrl + $item.find('a').attr('href')
           return false
         }
       })
@@ -111,16 +157,33 @@ export class JavdbService {
 
       // 获取详情页面
       logger.startStep(code, 'javdb-detail', '正在获取视频详细信息')
-      const detailResponse = await client.get(detailUrl)
+      const detailResponse = await this.client.get(detailUrl)
       const detail$ = cheerio.load(detailResponse.data)
-      const detailCode = detail$(
+
+      // 获取番号和标题
+      const detialCode = detail$(
         '.movie-panel-info .panel-block:contains("番號") .value'
       )
         .text()
         .trim()
+      let title = ''
+      const originTitle = detail$('.video-detail .title .origin-title')
+        .text()
+        .trim()
+      if (originTitle) {
+        // 如果存在原始标题，使用原始标题
+        title = detialCode + ' ' + originTitle
+      } else {
+        // 如果不存在原始标题，使用当前显示的标题
+        title =
+          detialCode +
+          ' ' +
+          detail$('.video-detail .title .current-title').text().trim()
+      }
+
       const videoInfo = {
-        title: `${code} ${detail$('.video-detail .title .current-title').text().trim()}`,
-        code: detailCode,
+        title: title,
+        code: detialCode,
         releaseDate: detail$(
           '.movie-panel-info .panel-block:contains("日期") .value'
         )
@@ -155,6 +218,7 @@ export class JavdbService {
           .map((_, el) => detail$(el).text().trim())
           .get(),
         coverUrl: detail$('.column-video-cover img').attr('src'),
+        detailUrl: detailUrl,
       }
 
       logger.completeStep(

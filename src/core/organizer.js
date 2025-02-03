@@ -31,38 +31,49 @@ export class Organizer {
    */
   async processVideo(videoInfo, config, targetDir, retryCount = 3) {
     let attempt = 0
+    let metadata = null
+    let videoDir = null
+
     while (attempt < retryCount) {
       try {
-        let videoDir = null
         const { code: videoCode, file: videoFile } = videoInfo
         const sourceVideoPath = videoFile.path
 
-        // 记录找到的视频文件
-        logger.startStep(videoCode, 'scan', `正在处理视频文件 ${videoCode}`)
-        logger.completeStep(
-          videoCode,
-          'scan',
-          `找到视频文件: ${sourceVideoPath}`
-        )
+        // 如果已经获取到metadata，就不需要重新获取
+        if (!metadata) {
+          // 记录找到的视频文件
+          logger.startStep(videoCode, 'scan', `正在处理视频文件 ${videoCode}`)
+          logger.completeStep(
+            videoCode,
+            'scan',
+            `找到视频文件: ${sourceVideoPath}`
+          )
 
-        // 获取视频信息
-        logger.startStep(
-          videoCode,
-          'scrape',
-          `正在获取视频 ${videoCode} 的信息`
-        )
-        const metadata = await scraper.javdb.getVideoInfo(videoCode, config)
-        logger.completeStep(
-          videoCode,
-          'scrape',
-          `成功获取视频 ${videoCode} 的信息`
-        )
+          // 获取视频信息
+          logger.startStep(
+            videoCode,
+            'scrape',
+            `正在获取视频 ${videoCode} 的信息`
+          )
+          metadata = await scraper.javdb.getVideoInfo(videoCode, config)
+          logger.completeStep(
+            videoCode,
+            'scrape',
+            `成功获取视频 ${videoCode} 的信息`
+          )
+        }
 
-        // 创建临时目录
-        logger.startStep(videoCode, 'createDir', '正在创建视频目录')
-        videoDir = path.join(targetDir, metadata.code)
-        await fs.mkdir(videoDir, { recursive: true })
-        logger.completeStep(videoCode, 'createDir', `成功创建目录: ${videoDir}`)
+        // 如果目录不存在才创建
+        if (!videoDir) {
+          logger.startStep(videoCode, 'createDir', '正在创建视频目录')
+          videoDir = path.join(targetDir, metadata.code)
+          await fs.mkdir(videoDir, { recursive: true })
+          logger.completeStep(
+            videoCode,
+            'createDir',
+            `成功创建目录: ${videoDir}`
+          )
+        }
 
         try {
           // 生成 NFO 文件
@@ -215,7 +226,6 @@ export class Organizer {
             code: videoInfo.code,
             error: error.message,
           })
-          continue
         }
       }
 
