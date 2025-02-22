@@ -57,7 +57,7 @@ ${(metadata.categories || [])
 ${(metadata.categories || [])
   .map((category) => `  <genre>${escapeXML(category)}</genre>`)
   .join('\n')}
-  <set>${escapeXML(metadata.series || '----')}</set>
+  <set>${escapeXML(metadata.series || '')}</set>
   <cover>${escapeXML(metadata.coverUrl || '')}</cover>
   <website>${escapeXML(metadata.detailUrl || '')}</website>
 </movie>`
