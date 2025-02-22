@@ -13,18 +13,6 @@ export class Logger extends EventEmitter {
       ERROR: 'error',
     }
     this.logFile = null
-    this.logStream = null
-  }
-
-  // 添加格式化时间方法
-  formatTime(date) {
-    return date.toLocaleTimeString('zh-CN', {
-      hour12: false,
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      fractionalSecondDigits: 3,
-    })
   }
 
   /**
@@ -115,15 +103,6 @@ export class Logger extends EventEmitter {
       stepInfo.level = this.logLevels.ERROR
       this.emit('stepUpdate', { taskId, ...stepInfo })
     }
-  }
-
-  /**
-   * 获取任务的所有步骤
-   * @param {string} taskId 任务ID
-   * @returns {Map} 步骤信息Map
-   */
-  getTaskSteps(taskId) {
-    return this.steps.get(taskId) || new Map()
   }
 
   /**

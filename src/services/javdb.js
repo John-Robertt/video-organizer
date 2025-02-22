@@ -2,7 +2,7 @@
 import axios from 'axios'
 import * as cheerio from 'cheerio'
 import fs from 'fs'
-import { logger } from '../services/logger.js'
+import { logger } from './logger.js'
 
 export class JavdbService {
   constructor() {
@@ -28,12 +28,7 @@ export class JavdbService {
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
         Cookie: this.cookies,
       },
-      validateStatus: (status) => status >= 200 && status < 300,
-      retry: 3,
-      retryDelay: 1000,
-      retryCondition: (error) => {
-        return axios.isNetworkError(error) || error.response?.status === 429
-      },
+      validateStatus: (status) => status >= 200 && status < 300
     })
   }
 
@@ -231,27 +226,6 @@ export class JavdbService {
     } catch (error) {
       logger.failStep(code, 'javdb', `获取视频信息失败: ${error.message}`)
       throw error
-    }
-  }
-
-  // 添加请求重试处理
-  async request(config) {
-    let retries = 0
-    while (retries < this.client.defaults.retry) {
-      try {
-        return await this.client(config)
-      } catch (error) {
-        if (
-          !this.client.defaults.retryCondition(error) ||
-          retries === this.client.defaults.retry - 1
-        ) {
-          throw error
-        }
-        retries++
-        await new Promise((resolve) =>
-          setTimeout(resolve, this.client.defaults.retryDelay * retries)
-        )
-      }
     }
   }
 }
